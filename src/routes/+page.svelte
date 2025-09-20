@@ -2,28 +2,58 @@
   import { OrderByHashStore } from '$houdini';
   import { onMount } from 'svelte';
 
-  let orderData = null;
-  let loading = false;
-  let error = null;
+  let houdiniData = $state()
+  let directData = $state()
+  let loading = $state()
+  let error = $state()
 
-  // Create store instance
+  // Create Houdini store instance
   const store = new OrderByHashStore();
 
-  // Fetch order data using Houdini store
-  async function fetchOrderData() {
+  // Fetch with both methods for comparison
+  async function fetchBothMethods() {
     loading = true;
     error = null;
 
     try {
-      const result = await store.fetch({
-        variables: { req: { orderHash: "test_hash_456" } }
+      // 1. Fetch with Houdini
+      const houdiniResult = await store.fetch({
+        variables: { req: { orderHash: "abc123def456" } }
+      });
+      houdiniData = houdiniResult.data;
+
+      // 2. Fetch directly with GraphQL (bypass Houdini cache)
+      const directResult = await fetch('http://localhost:4000/graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: `
+            query GetOrder {
+              orderByHash(req: { orderHash: "abc123def456" }) {
+                order {
+                  orderItems {
+                    id
+                    name
+                    optionSets {
+                      id
+                      name
+                      selectedOption {
+                        id
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          `
+        })
       });
 
-      orderData = result.data;
-      console.log('📦 Order data fetched:', orderData);
+      const directJson = await directResult.json();
+      directData = directJson.data;
 
     } catch (err) {
-      console.error('❌ Error fetching order data:', err);
       error = err.message;
     } finally {
       loading = false;
@@ -31,50 +61,23 @@
   }
 
   onMount(() => {
-    fetchOrderData();
+    fetchBothMethods();
   });
 
-  // Helper function to check for duplications
-  function findDuplications(data) {
+  // Extract just the selectedOptions for comparison
+  function getSelectedOptions(data) {
     if (!data?.orderByHash?.order?.orderItems) return [];
 
-    const seenOptions = new Map();
-    const duplications = [];
-
-    data.orderByHash.order.orderItems.forEach((item, itemIndex) => {
-      item.optionSets?.forEach((optionSet, setIndex) => {
-        if (optionSet.selectedOption) {
-          const optionId = optionSet.selectedOption.id;
-
-          if (seenOptions.has(optionId)) {
-            const previous = seenOptions.get(optionId);
-            duplications.push({
-              optionId,
-              optionName: optionSet.selectedOption.name,
-              first: previous,
-              duplicate: {
-                itemName: item.name,
-                itemIndex,
-                optionSetName: optionSet.name,
-                setIndex
-              }
-            });
-          } else {
-            seenOptions.set(optionId, {
-              itemName: item.name,
-              itemIndex,
-              optionSetName: optionSet.name,
-              setIndex
-            });
-          }
-        }
-      });
-    });
-
-    return duplications;
+    return data.orderByHash.order.orderItems.map((item, index) => ({
+      itemName: item.name,
+      itemIndex: index + 1,
+      selectedOption: item.optionSets[0]?.selectedOption
+    }));
   }
 
-  $: duplications = orderData ? findDuplications(orderData) : [];
+  // Derived values that update automatically when data changes
+  let houdiniOptions = $derived(houdiniData ? getSelectedOptions(houdiniData) : []);
+  let directOptions = $derived(directData ? getSelectedOptions(directData) : []);
 </script>
 
 <svelte:head>
@@ -82,13 +85,12 @@
 </svelte:head>
 
 <div class="page">
-
   <div class="controls">
-    <button on:click={fetchOrderData} disabled={loading}>
+    <button on:click={fetchBothMethods} disabled={loading}>
       {#if loading}
         Loading...
       {:else}
-        Fetch Order Data
+        Fetch Data
       {/if}
     </button>
   </div>
@@ -100,85 +102,57 @@
     </div>
   {/if}
 
-  {#if orderData}
-    <div class="results">
-      <div class="bug-demo">
-        <h2>🐛 Bug Demonstration</h2>
-        <p><strong>Order ID:</strong> {orderData.orderByHash.order.id}</p>
-        <p><strong>Status:</strong> {orderData.orderByHash.order.status}</p>
-        <p><strong>Items:</strong> {orderData.orderByHash.order.orderItems.length}</p>
+  {#if houdiniData && directData}
+    <div class="comparison">
+      <div class="comparison-grid">
 
-        {#if duplications.length > 0}
-          <div class="warning">
-            <h3>⚠️ DUPLICATION DETECTED!</h3>
-            <p>The same option ID appears in multiple contexts, causing cache collision.</p>
-          </div>
-        {:else}
-          <div class="success">
-            <h3>✅ No Duplications Found</h3>
-            <p>All option IDs are unique across contexts.</p>
-          </div>
-        {/if}
-      </div>
+        <!-- Direct Fetch (Expected) -->
+        <div class="method-result expected">
+          <h3>✅ Direct Fetch (Expected)</h3>
+          <p class="method-desc">Raw GraphQL response without Houdini cache</p>
 
-      <div class="order-details">
-        <h3>📦 Order Items</h3>
-        {#each orderData.orderByHash.order.orderItems as item, itemIndex}
-          <div class="order-item">
-            <h4>{item.name} (Item {itemIndex + 1})</h4>
-            <p><strong>Price:</strong> ${item.price / 100}</p>
-            <p><strong>Quantity:</strong> {item.quantity}</p>
-
-            <div class="option-sets">
-              <h5>🎛️ Option Sets ({item.optionSets.length})</h5>
-              {#each item.optionSets as optionSet, setIndex}
-                <div class="option-set">
-                  <strong>{optionSet.name}</strong>
-                  {#if optionSet.selectedOption}
-                    <div class="selected-option">
-                      <strong>Selected:</strong> {optionSet.selectedOption.name}
-                      <br>
-                      <strong>ID:</strong> <code>{optionSet.selectedOption.id}</code>
-                      <br>
-                      <strong>Price:</strong> ${optionSet.selectedOption.price / 100}
-                      <br>
-                      <strong>POS Ref:</strong> {optionSet.selectedOption.posReferenceId}
-                    </div>
-                  {/if}
-                </div>
-              {/each}
-            </div>
-          </div>
-        {/each}
-      </div>
-
-      {#if duplications.length > 0}
-        <div class="duplication-analysis">
-          <h3>🔍 Duplication Analysis</h3>
-          <div class="analysis-table">
-            {#each duplications as dup, index}
-              <div class="duplication-item">
-                <h4>Duplication #{index + 1}: <code>{dup.optionId}</code></h4>
-                <div class="occurrence">
-                  <strong>First Occurrence:</strong>
-                  <p>Item: {dup.first.itemName} (index {dup.first.itemIndex})</p>
-                  <p>Option Set: {dup.first.optionSetName} (index {dup.first.setIndex})</p>
-                </div>
-                <div class="occurrence">
-                  <strong>Duplicate Occurrence:</strong>
-                  <p>Item: {dup.duplicate.itemName} (index {dup.duplicate.itemIndex})</p>
-                  <p>Option Set: {dup.duplicate.optionSetName} (index {dup.duplicate.setIndex})</p>
-                </div>
+          {#each directOptions as item}
+            <div class="item-card">
+              <div class="item-header">{item.itemName}</div>
+              <div class="item-option">
+                <strong>Egg Option:</strong> {item.selectedOption?.name || 'None'}
               </div>
-            {/each}
-          </div>
+            </div>
+          {/each}
         </div>
-      {/if}
 
-      <div class="debug-info">
-        <h3>🐛 Debug Information</h3>
-        <p><strong>Raw Data Structure:</strong></p>
-        <pre>{JSON.stringify(orderData, null, 2)}</pre>
+        <!-- Houdini Fetch (Actual) -->
+        <div class="method-result actual">
+          <h3>🐛 Houdini Fetch (Actual)</h3>
+          <p class="method-desc">Same query through Houdini cache</p>
+
+          {#each houdiniOptions as item}
+            <div class="item-card">
+              <div class="item-header">{item.itemName}</div>
+              <div class="item-option">
+                <strong>Egg Option:</strong> {item.selectedOption?.name || 'None'}
+              </div>
+            </div>
+          {/each}
+        </div>
+
+      </div>
+
+      <!-- Bug Status -->
+      <div class="bug-status">
+        {#if directOptions.length >= 2 && houdiniOptions.length >= 2}
+          {#if directOptions[0].selectedOption?.name !== houdiniOptions[0].selectedOption?.name}
+            <div class="status-bug">
+              <h4>🚨 BUG DETECTED</h4>
+              <p>Item 1 should be "{directOptions[0].selectedOption?.name}" but Houdini shows "{houdiniOptions[0].selectedOption?.name}"</p>
+            </div>
+          {:else}
+            <div class="status-ok">
+              <h4>✅ NO BUG DETECTED</h4>
+              <p>Both methods return the same data</p>
+            </div>
+          {/if}
+        {/if}
       </div>
     </div>
   {/if}
@@ -187,8 +161,9 @@
 <style>
   .page {
     padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
   }
-
 
   .controls {
     text-align: center;
@@ -200,9 +175,10 @@
     color: white;
     border: none;
     padding: 12px 24px;
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
     font-size: 16px;
+    font-weight: 500;
   }
 
   button:hover {
@@ -219,50 +195,100 @@
     border: 1px solid #f44336;
     color: #c62828;
     padding: 15px;
-    border-radius: 5px;
+    border-radius: 8px;
     margin: 20px 0;
   }
 
-  .results {
+  .comparison {
     margin-top: 30px;
   }
 
-  .order-details {
-    margin: 30px 0;
-  }
-
-  .option-sets {
-    margin-top: 10px;
-  }
-
-  .duplication-analysis {
-    margin: 30px 0;
-    padding: 20px;
-    background: #fff3e0;
-    border-radius: 5px;
-    border-left: 4px solid #ff9800;
-  }
-
-  .analysis-table {
+  .comparison-grid {
     display: grid;
-    gap: 15px;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 30px;
   }
 
-  .duplication-item {
+  .method-result {
+    padding: 20px;
+    border-radius: 12px;
+    border: 2px solid;
+  }
+
+  .method-result.expected {
+    background: #f0f9ff;
+    border-color: #0ea5e9;
+  }
+
+  .method-result.actual {
+    background: #fef7f7;
+    border-color: #ef4444;
+  }
+
+  .method-result h3 {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+  }
+
+  .method-desc {
+    font-size: 14px;
+    color: #666;
+    margin: 0 0 20px 0;
+  }
+
+  .item-card {
     background: white;
-    padding: 15px;
-    border-radius: 5px;
-    border: 1px solid #ddd;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
   }
 
-  .occurrence {
-    margin: 10px 0;
-    padding: 10px;
-    background: #f5f5f5;
-    border-radius: 3px;
+  .item-header {
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 8px;
+    color: #1f2937;
   }
 
-  .occurrence strong {
-    color: #333;
+  .item-option {
+    color: #374151;
+    font-size: 14px;
+  }
+
+  .bug-status {
+    text-align: center;
+    padding: 20px;
+    border-radius: 12px;
+  }
+
+  .status-bug {
+    background: #fef2f2;
+    border: 2px solid #ef4444;
+    color: #991b1b;
+  }
+
+  .status-ok {
+    background: #f0fdf4;
+    border: 2px solid #22c55e;
+    color: #166534;
+  }
+
+  .status-bug h4, .status-ok h4 {
+    margin: 0 0 12px 0;
+    font-size: 18px;
+  }
+
+  .status-bug p, .status-ok p {
+    margin: 6px 0;
+    font-size: 14px;
+  }
+
+  @media (max-width: 768px) {
+    .comparison-grid {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
   }
 </style>
