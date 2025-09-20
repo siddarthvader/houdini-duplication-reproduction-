@@ -1,17 +1,18 @@
-/// <reference types="houdini-svelte">
+/// <references types="houdini-svelte">
 
 /** @type {import('houdini').ConfigFile} */
+
 const config = {
-  schemaPath: './schema.graphql',
-  sourceGlob: 'src/**/*.graphql',
-  module: 'esm',
-  framework: 'svelte',
+  watchSchema: {
+    url: 'env:VITE_PUBLIC_GRAPHQL_ENDPOINT',
+    interval: null
+  },
   plugins: {
     'houdini-svelte': {}
   },
-  scalars: {
-    // Add custom scalars if needed
-  }
-}
+  componentFields: true,
+  defaultCachePolicy: 'NetworkOnly',
+  defaultFragmentMasking: 'disable'
+};
 
-export default config
+export default config;
