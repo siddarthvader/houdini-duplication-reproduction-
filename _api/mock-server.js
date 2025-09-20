@@ -6,6 +6,7 @@ import fs from 'node:fs'
 const typeDefs = fs.readFileSync('./schema.graphql', 'utf-8')
 
 // Mock data for testing the duplication bug
+// KEY: Multiple order items with SAME optionSet ID but different selectedOptions
 const mockOrder = {
   id: "order_123",
   hash: "abc123def456",
@@ -13,31 +14,40 @@ const mockOrder = {
   orderItems: [
     {
       id: "item_1",
-      name: "Test Item",
-      description: "A test item for reproduction",
-      price: 1500, // in cents
-      quantity: 2,
+      name: "Full English #1",
+      description: "Full English",
+      price: 10900,
+      quantity: 1,
       optionSets: [
         {
-          id: "optionset_1",
-          name: "Size",
+          id: "4200d056-0a65-42a5-ad93-a0d11bb975ad", // SAME optionSet ID as item_2
+          name: "Egg Temperature",
           selectedOption: {
-            id: "option_1", // This field causes the duplication issue
-            name: "Large",
-            price: 200,
-            posReferenceId: "pos_ref_1",
-            posSource: "square"
+            id: "3d26a139-936c-4d8f-8439-d4476c2d245f", // Different option ID
+            name: "Egg Fried Over Easy Soft",
+            price: 0,
+            posReferenceId: "109002011",
+            posSource: "Micros"
           }
-        },
+        }
+      ]
+    },
+    {
+      id: "item_2",
+      name: "Full English #2",
+      description: "Full English",
+      price: 10900,
+      quantity: 1,
+      optionSets: [
         {
-          id: "optionset_2",
-          name: "Extras",
+          id: "4200d056-0a65-42a5-ad93-a0d11bb975ad", // SAME optionSet ID as item_1 - causes collision
+          name: "Egg Temperature",
           selectedOption: {
-            id: "option_2", // This field causes the duplication issue
-            name: "Extra Cheese",
-            price: 100,
-            posReferenceId: "pos_ref_2",
-            posSource: "square"
+            id: "3a7113c6-4e79-4c67-a56b-59ecf8b80991", // Different option ID
+            name: "Egg Fried Sunny Side Up",
+            price: 0,
+            posReferenceId: "109002001",
+            posSource: "Micros"
           }
         }
       ]

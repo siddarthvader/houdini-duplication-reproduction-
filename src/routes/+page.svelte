@@ -82,10 +82,6 @@
 </svelte:head>
 
 <div class="page">
-  <div class="header">
-    <h1>🔍 Houdini selectedOption Duplication Bug</h1>
-    <p>This page demonstrates the cache collision issue in nested GraphQL fragments.</p>
-  </div>
 
   <div class="controls">
     <button on:click={fetchOrderData} disabled={loading}>
@@ -193,10 +189,6 @@
     padding: 20px;
   }
 
-  .header {
-    text-align: center;
-    margin-bottom: 30px;
-  }
 
   .controls {
     text-align: center;
