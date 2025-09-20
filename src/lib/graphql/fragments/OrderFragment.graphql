@@ -1,0 +1,8 @@
+fragment OrderFragment on Order {
+  id
+  hash
+  status
+  orderItems {
+    ...OrderItemFragment
+  }
+}

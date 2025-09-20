@@ -1,0 +1,7 @@
+fragment CartItemOptionSetFragment on CartItemOptionSet {
+  id
+  name
+  selectedOption {
+    ...CartItemOptionFragment  # This is where duplication occurs
+  }
+}

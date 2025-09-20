@@ -1,0 +1,7 @@
+fragment CartItemOptionFragment on CartItemOption {
+  id              # Same ID across different contexts causes collision
+  name
+  price
+  posReferenceId
+  posSource
+}

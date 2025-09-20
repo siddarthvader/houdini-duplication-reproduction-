@@ -1,0 +1,10 @@
+# OrderByHash Query - This reproduces the duplication bug
+# The same option ID appears in different orderItems contexts
+
+query OrderByHash($req: ReqOrderByHash!) {
+  orderByHash(req: $req) {
+    order {
+      ...OrderFragment
+    }
+  }
+}

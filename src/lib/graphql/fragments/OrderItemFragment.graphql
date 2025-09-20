@@ -1,0 +1,10 @@
+fragment OrderItemFragment on OrderItem {
+  id
+  name
+  description
+  price
+  quantity
+  optionSets {
+    ...CartItemOptionSetFragment
+  }
+}
