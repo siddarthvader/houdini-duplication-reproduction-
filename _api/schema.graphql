@@ -1,0 +1,53 @@
+# GraphQL Schema for Houdini Duplication Bug Reproduction
+# This schema reproduces the nested fragment issue with selectedOption duplication
+
+type Query {
+  orderByHash(req: ReqOrderByHash!): OrderByHashResponse
+}
+
+type OrderByHashResponse {
+  order: Order
+}
+
+input ReqOrderByHash {
+  orderHash: String!
+}
+
+type Order {
+  id: ID!
+  hash: String!
+  status: OrderStatus!
+  orderItems: [OrderItem!]!
+}
+
+type OrderItem {
+  id: ID!
+  name: String!
+  description: String
+  price: Int!
+  quantity: Int!
+  optionSets: [CartItemOptionSet!]!
+}
+
+type CartItemOptionSet {
+  id: ID!
+  name: String!
+  selectedOption: CartItemOption
+}
+
+type CartItemOption {
+  id: ID!              # This is the field that causes duplication
+  name: String!
+  price: Int!
+  posReferenceId: String
+  posSource: String
+}
+
+enum OrderStatus {
+  OPEN
+  CONFIRMED
+  PREPARING
+  READY
+  DELIVERED
+  CANCELLED
+}

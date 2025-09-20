@@ -1,0 +1,14 @@
+{
+  "name": "houdini-duplication-api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node mock-server.js",
+    "dev": "node mock-server.js"
+  },
+  "dependencies": {
+    "graphql": "^16.8.1",
+    "graphql-yoga": "^4.0.4"
+  }
+}
