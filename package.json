@@ -11,10 +11,7 @@
     "lint": "prettier --plugin-search-dir . --check . && eslint .",
     "format": "prettier --plugin-search-dir . --write .",
     "houdini:generate": "houdini generate",
-    "mock-server": "cd _api && npm start",
-    "test:bug": "node scripts/test-bug.js",
-    "test:fix": "node scripts/test-fix.js",
-    "dev:full": "concurrently \"npm run mock-server\" \"npm run dev\""
+    "server": "cd _api && npm start"
   },
   "devDependencies": {
     "@sveltejs/adapter-auto": "^3.3.1",
@@ -40,3 +37,4 @@
   },
   "type": "module"
 }
+
